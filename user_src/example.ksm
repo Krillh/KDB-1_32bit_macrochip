@@ -1,0 +1,9 @@
+JMP boot
+
+
+#label boot
+CONST 5000 a
+MOV a nm
+SYSADD 300 a
+OUT a
+
