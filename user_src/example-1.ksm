@@ -1,0 +1,12 @@
+JMP boot
+
+#label MUL
+
+
+
+
+#LABEL boot
+MOV 30000 SP
+MOV SP A
+OUT A
+
