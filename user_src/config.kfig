@@ -1,0 +1,14 @@
+  ; kfig file is not implemented yet.
+  ; this is an example of how it may look
+ 
+
+  ; defines a kernal path. you may only have one kernal
+#config:kernal =kihu-kernal.ksm
+
+
+  ; tells the code to print the current instruction
+#config:debug print_current_instruction =true
+
+
+  ; the speed of the computer in hertz(hz)
+#config:computer speed =20
