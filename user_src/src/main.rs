@@ -1,7 +1,7 @@
 
 mod assembler {
     fn line_err(line: u32, message: &str) {
-        println!("!  ERROR on line {} -> {}\r\n", line, message);
+        println!("!  ERROR on line {} -> {}", line, message);
     }
     fn fatal_line_err(line: u32, message: &str) {
         println!("\r\n!! ERROR on line {}\r\n{}\r\n\r\npress enter to exit program\r\n", line, message);
@@ -316,8 +316,9 @@ mod emulator {
         }
 
         pub fn run(&mut self, code: Vec<u32>) {
-            
-
+            use std::io::Write;
+            let std_output = std::io::stdout();
+            let mut out = std_output.lock();
 
             loop {
 
@@ -408,8 +409,8 @@ mod emulator {
                     0x54 => {if !self.c_flag {self.ip_reg = ((self.op_bfr) << 8) >> 8}}
                     0x55 => {if self.z_flag & self.c_flag {self.ip_reg = ((self.op_bfr) << 8) >> 8}}
                     0x56 => {if self.z_flag ^ self.c_flag {self.ip_reg = ((self.op_bfr) << 8) >> 8}}
-                    0x57 => {{let n = self.sp_reg.overflowing_sub(1); self.c_flag = n.1; self.z_flag = n.1; self.sp_reg = n.0} self.mem[((self.sp_reg << 8) >> 8) as usize] = self.ip_reg; self.ip_reg = ((self.op_bfr) << 8) >> 8}
-                    0x58 => {self.ip_reg = self.mem[((self.sp_reg << 8) >> 8) as usize]; {let n = self.sp_reg.overflowing_add(1); self.c_flag = n.1; self.sp_reg = n.0}}
+                    0x57 => {{let n = self.sp_reg.overflowing_sub(1); self.c_flag = n.1; self.z_flag = n.1; self.sp_reg = n.0} self.mem[((self.sp_reg-1 << 8) >> 8) as usize] = self.ip_reg; self.ip_reg = ((self.op_bfr) << 8) >> 8}
+                    0x58 => {self.ip_reg = self.mem[((self.sp_reg-1 << 8) >> 8) as usize]; {let n = self.sp_reg.overflowing_add(1); self.c_flag = n.1; self.sp_reg = n.0}}
                     0x60 => {let n = (((self.op_bfr) << 8) >> 8).overflowing_add(self.nm_reg); self.a_reg = n.0; self.c_flag = n.1}
                     0x61 => {let n = (((self.op_bfr) << 8) >> 8).overflowing_add(self.nm_reg); self.b_reg = n.0; self.c_flag = n.1}
                     0x62 => {let n = (((self.op_bfr) << 8) >> 8).overflowing_add(self.nm_reg); self.c_reg = n.0; self.c_flag = n.1}
@@ -564,10 +565,9 @@ mod emulator {
 fn main() {
     let thread_builder = std::thread::Builder::new().name("cmp".into()).stack_size(0xf000000 * 4);
 
-    println!("mmm");
-    let code = assembler::assemble_file("example.ksm");
+    let code = assembler::assemble_file("example-1.ksm");
     let handler = thread_builder.spawn(move|| {
-        let mut computer = emulator::Computer::new(5.0);
+        let mut computer = emulator::Computer::new(20.0);
 
         computer.run(code);
     }).unwrap();

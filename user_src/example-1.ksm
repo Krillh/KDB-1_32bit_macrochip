@@ -1,12 +1,20 @@
 JMP boot
 
-#label MUL
-
+#label lll
+MOV A NM
+SYSADD B C
+OUT C
+RET
 
 
 
 #LABEL boot
-MOV 30000 SP
-MOV SP A
+CONST 30000 A
+MOV A SP
+CONST 10 A
 OUT A
-
+CONST 20 B
+OUT B
+CALL lll
+CONST 777 D
+OUT D
