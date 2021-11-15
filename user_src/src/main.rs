@@ -418,9 +418,9 @@ mod emulator {
                     0x64 => {let n = self.a_reg.overflowing_add(self.nm_reg); self.b_reg = n.0; self.c_flag = n.1}
                     0x65 => {let n = self.a_reg.overflowing_add(self.nm_reg); self.c_reg = n.0; self.c_flag = n.1}
                     0x66 => {let n = self.a_reg.overflowing_add(self.nm_reg); self.d_reg = n.0; self.c_flag = n.1}
-                    0x67 => {let n = self.d_reg.overflowing_add(self.nm_reg); self.a_reg = n.0; self.c_flag = n.1}
-                    0x68 => {let n = self.d_reg.overflowing_add(self.nm_reg); self.c_reg = n.0; self.c_flag = n.1}
-                    0x69 => {let n = self.d_reg.overflowing_add(self.nm_reg); self.d_reg = n.0; self.c_flag = n.1}
+                    0x67 => {let n = self.b_reg.overflowing_add(self.nm_reg); self.a_reg = n.0; self.c_flag = n.1}
+                    0x68 => {let n = self.b_reg.overflowing_add(self.nm_reg); self.c_reg = n.0; self.c_flag = n.1}
+                    0x69 => {let n = self.b_reg.overflowing_add(self.nm_reg); self.d_reg = n.0; self.c_flag = n.1}
                     0x6a => {let n = self.c_reg.overflowing_add(self.nm_reg); self.a_reg = n.0; self.c_flag = n.1}
                     0x6b => {let n = self.c_reg.overflowing_add(self.nm_reg); self.b_reg = n.0; self.c_flag = n.1}
                     0x6c => {let n = self.c_reg.overflowing_add(self.nm_reg); self.d_reg = n.0; self.c_flag = n.1}
