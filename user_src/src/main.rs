@@ -17,7 +17,7 @@ mod assembler {
 
         assemble_str(file)
     }
-    pub fn assemble_str(code: String) -> Vec<u32> {
+    fn assemble_str(code: String) -> Vec<u32> {
         use std::collections::HashMap;
         let lower = code.to_ascii_lowercase();
         let lines_cd = lower.lines();
@@ -36,14 +36,16 @@ mod assembler {
 
             match line[..] {
                 [] => {},
-                ["#label", l]           => {jump_map.insert(l, line_counter - 2); line_counter = line_counter + 1;},
-                ["#", l]                => {jump_map.insert(l, line_counter - 2); line_counter = line_counter + 1;},
+                ["#label", l]           => {jump_map.insert(l, line_counter - 2);},
+                ["#", l]                => {jump_map.insert(l, line_counter - 2);},
                 _ => {line_counter = line_counter + 1;}
             }
             
         }
 
         line_counter = 1;
+
+        // println!("{:#?}", jump_map.values());
 
         for line in lines_cd {
             let line = line.trim();
@@ -54,12 +56,12 @@ mod assembler {
                 ["#label", _l]           => {},
                 ["#", _l]                => {},
 
-                [".dev", "output", "a"]      => {output.push(0x01000000)},
-                [".dev", "output", "b"]      => {output.push(0x02000000)},
-                [".dev", "output", "c"]      => {output.push(0x03000000)},
-                [".dev", "output", "d"]      => {output.push(0x04000000)},
-                [".dev", "output", "g-regs"] => {output.push(0x05000000)},
-                [".dev", "output", "s-regs"] => {output.push(0x06000000)},
+                [".dev", "print", "a"]      => {output.push(0x01000000)},
+                [".dev", "print", "b"]      => {output.push(0x02000000)},
+                [".dev", "print", "c"]      => {output.push(0x03000000)},
+                [".dev", "print", "d"]      => {output.push(0x04000000)},
+                [".dev", "print", "g-regs"] => {output.push(0x05000000)},
+                [".dev", "print", "s-regs"] => {output.push(0x06000000)},
 
                 ["nop"]                 => {output.push(0x00000000)},
                 ["hlt"]                 => {output.push(0x0f000000)},
@@ -265,7 +267,20 @@ mod assembler {
                 ["syscmp", "c"]         => {output.push(0xe3000000)},
                 ["syscmp", "d"]         => {output.push(0xe4000000)},
                 ["syscmp", c]           => {output.push(0xe0000000 | (match c.parse::<u32>() {Ok(v) => v, Err(_e) => {line_err(line_counter, "the first argument must be a 24 bit unsigned constant"); will_panic = true; 0}}))},
+                ["push", "a"]           => {output.push(0xe5000000)},
+                ["push", "b"]           => {output.push(0xe6000000)},
+                ["push", "c"]           => {output.push(0xe7000000)},
+                ["push", "d"]           => {output.push(0xe8000000)},
+                ["pop", "a"]            => {output.push(0xe9000000)},
+                ["pop", "b"]            => {output.push(0xea000000)},
+                ["pop", "c"]            => {output.push(0xeb000000)},
+                ["pop", "d"]            => {output.push(0xec000000)},
                 [] => {}
+                [n]                     => {line_err(line_counter, &format!("not a valid operation: {}", n)); will_panic = true},
+                [n1, n2]                => {line_err(line_counter, &format!("not a valid operation: {} {}", n1, n2)); will_panic = true},
+                [n1, n2, n3]            => {line_err(line_counter, &format!("not a valid operation: {} {} {}", n1, n2, n3)); will_panic = true},
+                [n1, n2, n3, n4]        => {line_err(line_counter, &format!("not a valid operation: {} {} {} {}", n1, n2, n3, n4)); will_panic = true},
+                [n1, n2, n3, n4, n5]    => {line_err(line_counter, &format!("not a valid operation: {} {} {} {} {}", n1, n2, n3, n4, n5)); will_panic = true},
                 _ => {line_err(line_counter, "not a valid operation"); will_panic = true},
             }
             line_counter = line_counter + 1;
@@ -275,9 +290,11 @@ mod assembler {
             panic!();
         }
 
+        // println!("{:#X?}", output);
         
         output
     }
+    
 }
 
 mod emulator {
@@ -295,6 +312,10 @@ mod emulator {
         pub z_flag: bool,
         pub c_flag: bool,
         pub op_bfr: u32,
+
+        show_current_operation: bool,
+        timer: bool,
+        full_speed: bool,
     }
     impl Computer {
         pub fn new(speed: f64) -> Computer {
@@ -312,13 +333,48 @@ mod emulator {
                 z_flag: false,
                 c_flag: false,
                 op_bfr: 0u32,
+
+                show_current_operation: false,
+                timer: false,
+                full_speed: false,
             }
         }
 
         pub fn run(&mut self, code: Vec<u32>) {
-            use std::io::Write;
-            let std_output = std::io::stdout();
-            let mut out = std_output.lock();
+            use std::time;
+            use std::fs;
+
+            let config = match fs::read_to_string("config.kfig") {
+                Ok(v) => v, 
+                Err(e) =>   {println!("!   ERROR: problem reading file\r\n            -> {}", e);
+                            let mut _bffr = String::new();
+                            std::io::stdin().read_line(&mut _bffr).unwrap();
+                            panic!();}
+            };
+
+            for line in config.lines() {
+
+                let trm = line.trim();
+                let split_trm: Vec<&str> = trm.split_ascii_whitespace().collect();
+
+                match split_trm[..] {
+                    []  => {},
+                    [";", _] => {},
+                    [option, value] => match (option.split_once(':'), value) {
+                        (Some(("#config", "print_current_instruction")), v) => if v.strip_prefix("=").unwrap() == "true" {self.show_current_operation = true} else if v.strip_prefix("=").unwrap() == "false" {self.show_current_operation = false} else {panic!("That's not a valid config setting!")},
+                        (Some(("#config", "computer_speed")), speed)    => {self.speed_hz = speed.strip_prefix('=').unwrap().parse::<f64>().unwrap()},
+                        (Some(("#config", "timer")), v) => if v.strip_prefix("=").unwrap() == "true" {self.timer = true} else if v.strip_prefix("=").unwrap() == "false" {self.timer = false} else {panic!("That's not a valid config setting!")},
+                        (Some(("#config", "full_speed")), v) => if v.strip_prefix("=").unwrap() == "true" {self.full_speed = true} else if v.strip_prefix("=").unwrap() == "false" {self.full_speed = false} else {panic!("That's not a valid config setting!")},
+                        _ => {/*ERROR*/}
+                    },
+                    _ => {},
+                };
+            };
+
+            let start = time::Instant::now();
+
+            
+            
 
             loop {
 
@@ -326,12 +382,14 @@ mod emulator {
                 self.op_bfr = code[self.ip_reg as usize];
 
                 // println!("A: {}\r\nB: {}\r\nC: {}\r\nD: {}", self.a_reg, self.b_reg, self.c_reg, self.d_reg);
-                // println!("IP:{}\r\nSP:{}\r\nVL:{}\r\nNM:{}", self.ip_reg, self.sp_reg, self.vl_reg, self.nm_reg);
+                //println!("IP:{}\r\nSP:{}\r\nVL:{}\r\nNM:{}", self.ip_reg, self.sp_reg, self.vl_reg, self.nm_reg);
                 // println!("OP:{}\r\n", self.op_bfr);
 
+                if self.show_current_operation {
+                    println!("excecuting {:#X}", self.op_bfr);
+                }
                 
-                println!("excecuting {}", self.op_bfr);
-                
+
                 match self.op_bfr >> 24 {
                     0x01 => {println!("A register: {}", self.a_reg)}
                     0x02 => {println!("B register: {}", self.b_reg)}
@@ -409,8 +467,8 @@ mod emulator {
                     0x54 => {if !self.c_flag {self.ip_reg = ((self.op_bfr) << 8) >> 8}}
                     0x55 => {if self.z_flag & self.c_flag {self.ip_reg = ((self.op_bfr) << 8) >> 8}}
                     0x56 => {if self.z_flag ^ self.c_flag {self.ip_reg = ((self.op_bfr) << 8) >> 8}}
-                    0x57 => {{let n = self.sp_reg.overflowing_sub(1); self.c_flag = n.1; self.z_flag = n.1; self.sp_reg = n.0} self.mem[((self.sp_reg-1 << 8) >> 8) as usize] = self.ip_reg; self.ip_reg = ((self.op_bfr) << 8) >> 8}
-                    0x58 => {self.ip_reg = self.mem[((self.sp_reg-1 << 8) >> 8) as usize]; {let n = self.sp_reg.overflowing_add(1); self.c_flag = n.1; self.sp_reg = n.0}}
+                    0x57 => {{let n = self.sp_reg.overflowing_sub(1); self.c_flag = n.1; self.z_flag = n.1; self.sp_reg = n.0} self.mem[((self.sp_reg << 8) >> 8) as usize] = self.ip_reg; self.ip_reg = ((self.op_bfr) << 8) >> 8}
+                    0x58 => {self.ip_reg = self.mem[((self.sp_reg << 8) >> 8) as usize]; {let n = self.sp_reg.overflowing_add(1); self.c_flag = n.1; self.sp_reg = n.0}}
                     0x60 => {let n = (((self.op_bfr) << 8) >> 8).overflowing_add(self.nm_reg); self.a_reg = n.0; self.c_flag = n.1}
                     0x61 => {let n = (((self.op_bfr) << 8) >> 8).overflowing_add(self.nm_reg); self.b_reg = n.0; self.c_flag = n.1}
                     0x62 => {let n = (((self.op_bfr) << 8) >> 8).overflowing_add(self.nm_reg); self.c_reg = n.0; self.c_flag = n.1}
@@ -544,6 +602,14 @@ mod emulator {
                     0xe2 => {let diff = self.b_reg.overflowing_sub(self.nm_reg); if diff.0 > 0 {self.z_flag = false; self.c_flag = true} else if diff.1 {self.z_flag = true; self.c_flag = true} else {self.z_flag = true; self.c_flag = false}}
                     0xe3 => {let diff = self.c_reg.overflowing_sub(self.nm_reg); if diff.0 > 0 {self.z_flag = false; self.c_flag = true} else if diff.1 {self.z_flag = true; self.c_flag = true} else {self.z_flag = true; self.c_flag = false}}
                     0xe4 => {let diff = self.d_reg.overflowing_sub(self.nm_reg); if diff.0 > 0 {self.z_flag = false; self.c_flag = true} else if diff.1 {self.z_flag = true; self.c_flag = true} else {self.z_flag = true; self.c_flag = false}}
+                    0xe5 => {self.sp_reg = self.sp_reg.overflowing_sub(1).0; self.mem[(self.sp_reg << 8 >> 8) as usize] = self.a_reg}
+                    0xe6 => {self.sp_reg = self.sp_reg.overflowing_sub(1).0; self.mem[(self.sp_reg << 8 >> 8) as usize] = self.b_reg}
+                    0xe7 => {self.sp_reg = self.sp_reg.overflowing_sub(1).0; self.mem[(self.sp_reg << 8 >> 8) as usize] = self.c_reg}
+                    0xe8 => {self.sp_reg = self.sp_reg.overflowing_sub(1).0; self.mem[(self.sp_reg << 8 >> 8) as usize] = self.d_reg}
+                    0xe9 => {self.a_reg = self.mem[(self.sp_reg << 8 >> 8) as usize]; self.sp_reg = self.sp_reg.overflowing_add(1).0}
+                    0xea => {self.b_reg = self.mem[(self.sp_reg << 8 >> 8) as usize]; self.sp_reg = self.sp_reg.overflowing_add(1).0}
+                    0xeb => {self.c_reg = self.mem[(self.sp_reg << 8 >> 8) as usize]; self.sp_reg = self.sp_reg.overflowing_add(1).0}
+                    0xec => {self.d_reg = self.mem[(self.sp_reg << 8 >> 8) as usize]; self.sp_reg = self.sp_reg.overflowing_add(1).0}
                     _ => {
                         println!("!   ERROR use of unused opcode {} -> {}:{}", self.op_bfr, self.op_bfr >> 24, (self.op_bfr << 8) >> 8);
                         let mut _bffr = String::new();
@@ -552,10 +618,11 @@ mod emulator {
                     }
                 }
                 self.ip_reg = self.ip_reg + 1;
-                std::thread::sleep(std::time::Duration::from_secs_f64(1.0f64 / self.speed_hz));
+                if !self.full_speed { std::thread::sleep(std::time::Duration::from_secs_f64(1.0f64 / self.speed_hz)) };
             }
 
-            println!("\r\nend of program")
+            println!("\r\nend of program");
+            if self.timer {println!("took {} milliseconds\r\n\r\n", start.elapsed().as_millis())}
         }
     }
 }

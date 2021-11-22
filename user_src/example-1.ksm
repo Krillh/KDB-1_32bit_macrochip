@@ -1,20 +1,34 @@
 JMP boot
 
-#label lll
+
+
+ #label delay
+PUSH A
+PUSH C
+PUSH B
+CONST 0 B
+MOV B NM
+POP B
+ #label delay_loop
+SYSDEC A C
+MOV C A
 MOV A NM
-SYSADD B C
-OUT C
+SYSCMP 0
+JC delay_loop
+POP C
+POP A
 RET
 
 
+ #LABEL boot
 
-#LABEL boot
+
 CONST 30000 A
 MOV A SP
-CONST 10 A
-OUT A
-CONST 20 B
-OUT B
-CALL lll
-CONST 777 D
-OUT D
+
+
+CONST 80 A
+CONST 540 B
+CONST 397 C
+CALL delay
+HLT

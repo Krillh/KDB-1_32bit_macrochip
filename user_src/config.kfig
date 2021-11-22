@@ -2,13 +2,19 @@
   ; this is an example of how it may look
  
 
-  ; defines a kernal path. you may only have one kernal
-#config:kernal =kihu-kernal.ksm
+ 
 
 
   ; tells the code to print the current instruction
-#config:debug print_current_instruction =true
+#config:print_current_instruction =true
 
 
   ; the speed of the computer in hertz(hz)
-#config:computer speed =20
+#config:computer_speed =1000000000.0
+
+ ; tells the emulator to have a delay or not
+ ; no delay is MUCH faster, but bad for debugging
+#config:full_speed =true
+
+  ; timer config
+#config:timer =true
