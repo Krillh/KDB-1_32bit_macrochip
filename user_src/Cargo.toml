@@ -1,5 +1,5 @@
 [package]
-name = "src"
+name = "kdb-1_emulator"
 version = "0.1.0"
 edition = "2018"
 
