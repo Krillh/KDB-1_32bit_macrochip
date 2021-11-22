@@ -632,7 +632,7 @@ mod emulator {
 fn main() {
     let thread_builder = std::thread::Builder::new().name("cmp".into()).stack_size(0xf000000 * 4);
 
-    let code = assembler::assemble_file("example-1.ksm");
+    let code = assembler::assemble_file("example-1.kdb1");
     let handler = thread_builder.spawn(move|| {
         let mut computer = emulator::Computer::new(20.0);
 
@@ -640,4 +640,8 @@ fn main() {
     }).unwrap();
 
     handler.join().unwrap();
+
+    println!("press enter to exit");
+    let mut _bffr = String::new();
+    std::io::stdin().read_line(&mut _bffr).unwrap();
 }
